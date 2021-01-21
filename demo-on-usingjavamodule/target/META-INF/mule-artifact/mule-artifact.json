@@ -1,0 +1,27 @@
+{
+  "configs": [
+    "usingjavamodule.xml"
+  ],
+  "secureProperties": [],
+  "redeploymentEnabled": true,
+  "name": "com.mycompany:usingjavamodule:1.0.0-SNAPSHOT",
+  "minMuleVersion": "4.2.1",
+  "requiredProduct": "MULE",
+  "classLoaderModelLoaderDescriptor": {
+    "id": "mule",
+    "attributes": {
+      "exportedPackages": [
+        "com.mule"
+      ],
+      "exportedResources": [
+        "log4j2.xml",
+        "product.json",
+        "usingjavamodule.xml"
+      ]
+    }
+  },
+  "bundleDescriptorLoader": {
+    "id": "mule",
+    "attributes": {}
+  }
+}

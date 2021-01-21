@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
+	<sub-flow name="ProductStepSubFlow" doc:id="5748745f-f329-4afd-83d5-dab9b88a3fe8" >
+		<logger level="INFO" doc:name="Log step start" doc:id="7704eced-6c63-445e-b310-a298b7fcd8b3" message="Product step, products=#[output application/json --- vars.inputSAPProducts]" />
+		<foreach doc:name="For Each SAP Product" doc:id="af72da56-a8a6-45e5-9adc-bb72808236f1" collection="vars.inputSAPProducts" >
+			<ee:transform doc:name="Prepare productCode2ProductIdList" doc:id="fb0057f5-a5c8-4a23-8877-270469ef204d" >
+				<ee:message />
+				<ee:variables >
+					<ee:set-variable variableName="productCode2ProductIdList" ><![CDATA[%dw 2.0
+output application/java
+---
+[]]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<logger level="INFO" doc:name="Log SAP product" doc:id="f985cad1-a6e5-4e7f-aee6-4228bd602b09" message="product=#[output application/json --- payload]" />
+			<salesforce:query doc:id="791c4af9-cb3d-4d06-80fc-405985fe03fb" config-ref="Salesforce_Config" target="sfdcProduct" targetValue="#[if (isEmpty(payload)) null else payload[0]]" doc:name="Query SFDC Product" >
+				<salesforce:salesforce-query >SELECT Id, Name, ProductCode from Product2 where ProductCode=':code' AND Name=':name'</salesforce:salesforce-query>
+				<salesforce:parameters ><![CDATA[#[output application/java
+---
+{
+	"code" : payload.productCode,
+	"name" : payload.productName
+}]]]></salesforce:parameters>
+			</salesforce:query>
+			<logger level="INFO" doc:name="Log SFDC product" doc:id="858ba574-d033-4062-bafd-ed15ac31aff8" message="sfdc product=#[output application/json --- vars.sfdcProduct]" />
+			<choice doc:name="SFDC product exist?" doc:id="9228a8d7-9df9-4fc3-a64e-ebf663e993b4" >
+				<when expression="#[vars.sfdcProduct == null]" >
+					<ee:transform doc:name="Prepare product data" doc:id="69839f09-bb38-40e6-9f27-d99a8a3d7982" >
+						<ee:message />
+						<ee:variables >
+							<ee:set-variable variableName="productData" ><![CDATA[%dw 2.0
+output application/java
+---
+[
+	{
+	    "Name": payload.productName,
+	    "ProductCode": payload.productCode
+	}
+]]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+					<salesforce:create type="Product2" doc:id="cbd68869-008e-4e8e-8343-18811bdb7693" config-ref="Salesforce_Config" target="createProductResponse" doc:name="Create SFDC Product" >
+						<salesforce:records ><![CDATA[#[vars.productData]]]></salesforce:records>
+					</salesforce:create>
+					<logger level="INFO" doc:name="Log call response" doc:id="1f4496bd-eb8d-481c-8a12-894c59779bf5" message="createProductResponse=#[output application/json --- vars.createProductResponse]" />
+					<ee:transform doc:name="Store sfdcProduct" doc:id="17dfbead-a32a-4716-bd9f-a7a775667c3e" >
+						<ee:message />
+						<ee:variables >
+							<ee:set-variable variableName="sfdcProduct" ><![CDATA[%dw 2.0
+output application/java
+---
+  {
+    "ProductCode": payload.productCode,
+    "Name": payload.productName,
+    "Id": vars.createProductResponse[0].Id
+  }]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+					<ee:transform doc:name="Populate Product code to id list" doc:id="119bfdcd-f457-4c77-83e6-4363c663962e" >
+						<ee:message />
+						<ee:variables >
+							<ee:set-variable variableName="productCode2ProductIdList" ><![CDATA[%dw 2.0
+output application/java
+---
+vars.productCode2ProductIdList + {
+	"ProductCode" : payload.productCode,
+	"Product2Id": vars.createProductResponse[0].Id
+}]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+				</when>
+				<otherwise >
+					<ee:transform doc:name="Populate Product code to id list" doc:id="6707fe16-0f43-454b-9f11-d0df29fd9b17" >
+						<ee:message />
+						<ee:variables >
+							<ee:set-variable variableName="productCode2ProductIdList" ><![CDATA[%dw 2.0
+output application/java
+---
+vars.productCode2ProductIdList + {
+	"ProductCode" : payload.productCode,
+	"Product2Id": vars.sfdcProduct.Id
+}]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+				</otherwise>
+			</choice>
+			<logger level="INFO" doc:name="Log Pricebook id" doc:id="c51eab22-12c9-4882-b617-8e5a19648044" message="looking for pricebookentry, productId=#[vars.sfdcProduct.Id], pricebookId=#[p('sfdc.pricebook.id')]" />
+			<salesforce:query doc:id="279fc6fa-b972-4383-8d2d-fcc391f1187e" config-ref="Salesforce_Config" target="sfdcPricebookentry" targetValue="#[if (isEmpty(payload)) null else payload[0]]" doc:name="Query Pricebookentry" >
+				<salesforce:salesforce-query >Select Id from Pricebookentry where Product2Id=':productId' and Pricebook2Id=':pricebookId'</salesforce:salesforce-query>
+				<salesforce:parameters ><![CDATA[#[output application/java
+---
+{
+	"productId" : vars.sfdcProduct.Id,
+	"pricebookId" : p('sfdc.pricebook.id')
+}]]]></salesforce:parameters>
+			</salesforce:query>
+			<logger level="INFO" doc:name="Log Pricebookentry" doc:id="d2d5dfc2-229b-481e-8ce9-917080a61aa3" message="vars.sfdcPricebookentry=#[vars.sfdcPricebookentry]" />
+			<choice doc:name="Does Pricebookentry exist?" doc:id="3711be6e-e779-4ee4-81ca-1daa668ac1f6" >
+				<when expression="vars.sfdcPricebookentry == null" >
+					<ee:transform doc:name="Prepare Pricebookentry data" doc:id="f08fdb63-f307-4768-8aa5-d40c79f52142" >
+						<ee:message />
+						<ee:variables >
+							<ee:set-variable variableName="sfdcPricebookentry" ><![CDATA[%dw 2.0
+output application/java
+---
+[
+    {
+        "Product2Id": vars.sfdcProduct.Id,
+        "Pricebook2Id" : p('sfdc.pricebook.standard.id'),
+        "UnitPrice" : "1",
+        "IsActive" : true
+    },
+    {
+        "Product2Id": vars.sfdcProduct.Id,
+        "Pricebook2Id" : vars.sfdcContract.Pricebook2Id,
+        "UnitPrice" : "1",
+        "UseStandardPrice" : false,
+        "IsActive" : true
+    }
+]]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+					<logger level="INFO" doc:name="Log Pricebookentry data" doc:id="72efcd1a-dfe7-4cf4-b3ea-0f587d1dd4cb" message="create Pricebookentry=#[output application/json --- vars.sfdcPricebookentry]" />
+					<salesforce:create type="Pricebookentry" doc:id="6168ba42-86c9-4b85-95af-8531bdbcdbc0" config-ref="Salesforce_Config" target="insertPricebookentryResponse" doc:name="Create Pricebookentry" >
+						<salesforce:records ><![CDATA[#[vars.sfdcPricebookentry]]]></salesforce:records>
+					</salesforce:create>
+					<logger level="INFO" doc:name="Log call response" doc:id="c61d3eb9-3d96-4e88-b13d-f90f5add1940" message="vars.insertPricebookentry=#[output application/json --- vars.insertPricebookentryResponse]" />
+					<ee:transform doc:name="Add Pricebookentry id to product" doc:id="d167093a-beed-4782-af8d-fc9921874a24" >
+						<ee:message />
+						<ee:variables >
+							<ee:set-variable variableName="sfdcProduct" ><![CDATA[%dw 2.0
+output application/java
+---
+vars.sfdcProduct ++ {
+	"PricebookentryId" : vars.insertPricebookentryResponse[1].id
+}]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+				</when>
+				<otherwise >
+					<ee:transform doc:name="Add Pricebookentry id to product" doc:id="2d22154c-bd9b-4800-8c66-e14714c9599c" >
+						<ee:message />
+						<ee:variables >
+							<ee:set-variable variableName="sfdcProduct" ><![CDATA[%dw 2.0
+output application/java
+---
+vars.sfdcProduct ++ {
+	"PricebookentryId" : vars.sfdcPricebookentry.Id
+}]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+				</otherwise>
+			</choice>
+			<logger level="INFO" doc:name="Log SFDC Product" doc:id="bbfab542-3993-406d-8fa1-fb0837380300" message="vars.sfdcProduct with pricebookentry=#[output application/json --- vars.sfdcProduct]" />
+			<ee:transform doc:name="Store sfdcProduct" doc:id="77e1f089-3f7e-4331-b64f-65e94cfff5d7" >
+				<ee:message />
+				<ee:variables >
+					<ee:set-variable variableName="sfdcProducts" ><![CDATA[%dw 2.0
+output application/java
+---
+vars.sfdcProducts + vars.sfdcProduct]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+		</foreach>
+		<logger level="INFO" doc:name="Log productCode2ProductIdList" doc:id="3bfb87f6-97fe-40b5-a215-eec3f24f7b33" message="ProductCode2PRoductIdList=#[output application/json --- vars.productCode2ProductIdList]" />
+		<logger level="INFO" doc:name="Log all products" doc:id="33cfa9c9-c85d-437f-958f-976cb9486ab6" message="sfdcProducts=#[output application/json --- vars.sfdcProducts]" />
+	</sub-flow>
+</mule>

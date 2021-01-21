@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc" xmlns:american-flights-api="http://www.mulesoft.org/schema/mule/american-flights-api"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/american-flights-api http://www.mulesoft.org/schema/mule/american-flights-api/current/mule-american-flights-api.xsd
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd">
+	<configuration-properties doc:name="Configuration properties" doc:id="63aa33f8-97ba-4683-a108-4f8bbac52e15" file="config.yaml" />
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="b5047ae6-6755-46a9-b188-44f158022c9f" >
+		<http:listener-connection host="0.0.0.0" port="8084" />
+	</http:listener-config>
+	<american-flights-api:config name="American_Flights_API_Config" doc:name="American Flights API Config" doc:id="ded3c1c2-4c95-49e0-afd9-eb7307bdc520" property_host="training4-american-api.cloudhub.io" property_port="80" property_protocol="HTTP">
+		<american-flights-api:connection />
+	</american-flights-api:config>
+	<http:request-config name="HTTP_Request_config_training" doc:name="HTTP Request configuration" doc:id="7f8dc7bd-3886-4f6a-83d7-334f0404d11d" basePath="${training.basepath}" >
+		<http:request-connection host="localhost" port="8084" />
+	</http:request-config>
+	<wsc:config name="Delta_Web_Service_Consumer_Config" doc:name="Web Service Consumer Config" doc:id="d43a0408-bb72-45f7-9b67-72c2af4d7863" >
+		<wsc:connection wsdlLocation="${delta.wsdl}" service="${delta.service}" port="${delta.port}" />
+	</wsc:config>
+</mule>

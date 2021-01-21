@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="27c91ed7-6ecc-4009-9059-73fd6ae178e9" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="695bc5c3-bba6-42ea-b6b8-17bf1b84de33" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="Miracle@1" database="project" />
+	</db:config>
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="85eb4715-591b-40f1-a97b-cfcfccf65e44" >
+		<http:request-connection host="localhost" port="8081" />
+	</http:request-config>
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="0e02ffcf-5565-4e48-b68e-a73049b7bfe4" >
+		<salesforce:cached-basic-connection username="ajaynandamudi@mss.com" password="Miracle@321" securityToken="J4kLN1IDmllyfcxxMV8wBbWlA" />
+	</salesforce:sfdc-config>
+	<flow name="munitpocflowFlow" doc:id="8723235d-b049-4ac9-a740-aa96d6c1aaaa" >
+		<http:listener doc:name="Listener" doc:id="95eb37bb-83cc-4cf0-ab7c-78be11e3fc06" config-ref="HTTP_Listener_config" path="/munit"/>
+		<db:select doc:name="Select" doc:id="11e99169-001a-4fe8-930d-254b75830bf3" config-ref="Database_Config">
+			<db:sql >select * from college where city =:city and state =:state and branch =:branch</db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	"city" : payload.city,
+	"state" : payload.state,
+	"branch" : attributes.queryParams.branch
+
+}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="44af3236-497e-4902-a5d0-03be54027ee4" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload map {
+	collgeId : $.collegeId,
+	collegeName : $.collegeName,
+	collgeStrength : $.collegeStrength
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<http:request method="GET" doc:name="Request" doc:id="7afb4e55-dcbf-465e-b614-92c9cc10fa75" config-ref="HTTP_Request_configuration" path="/munit"/>
+		<choice doc:name="Choice" doc:id="58d856ca-b7f4-45a7-b7b0-a96b97ee349c" >
+			<when >
+				<salesforce:query doc:name="Query" doc:id="d3ab7fd7-5ccb-4432-8f58-7814076f6386" config-ref="Salesforce_Config">
+					<salesforce:salesforce-query >select * from product </salesforce:salesforce-query>
+				</salesforce:query>
+				<ee:transform doc:name="Transform Message" doc:id="93f590fa-81f2-4334-ab68-56a1308e3258" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="18f33b58-707a-4302-afa2-293b06adcdbd" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+{
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+</mule>

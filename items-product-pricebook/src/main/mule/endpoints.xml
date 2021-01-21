@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+	<flow name="Copy_of_endpointsFlow" doc:id="e59d7e9e-a6f8-4888-af6d-9abf91c64ba0" >
+		<scheduler doc:name="Copy_of_plhg-item-productpricebook- Scheduler " doc:id="25c8b6f4-b6e5-4cfa-89bb-8260bd0c88ba" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="${scheduler.frequency}" startDelay="${scheduler.start.delay}" timeUnit="SECONDS" />
+			</scheduling-strategy>
+		</scheduler>
+		<os:retrieve doc:id="3d76c55a-34e8-42cd-8de1-a85fbaaeaa8a" key="wmKey" target="modifiedDate" doc:name="Copy_of_Retrieve" >
+			<os:default-value ><![CDATA[#["2020-11-09" as String {format:"yyyy-MM-dd HH:mm:ss"}]]]></os:default-value>
+		</os:retrieve>
+		<ee:transform doc:name="Copy_of_Transform Message" doc:id="2e0e057f-6205-4433-b717-0cbc37904658" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+{
+	mdDate:vars.modifiedDate
+	}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Copy_of_LogTimeStamp" doc:id="eb4fba7b-dbac-421a-a997-f20a861c5fcb" message="#[payload]" />
+		<try doc:name="Copy_of_Try" doc:id="06126f6c-6a6a-4d0e-ae8a-485c5582fa1e" >
+			<db:select doc:id="11f627dd-52ac-4d01-8f70-a5027946fec8" config-ref="Database_Config" doc:name="Copy_of_Select Records from database table" >
+				<db:sql >select  Name,PartDescription,ProductCode,PartNumber,ItemType,ReplaceWith,ShippingWeight,ShippingWeightUnits,IsActive,LastModifiedDate from item where LastModifiedDate&gt;:mdDate
+</db:sql>
+				<db:input-parameters ><![CDATA[#[{
+	mdDate:vars.modifiedDate
+	}]]]></db:input-parameters>
+			</db:select>
+		</try>
+		<ee:transform doc:name="Copy_of_Transform Message" doc:id="4d593d74-e19f-4c80-a1f5-93ba860c1310" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<os:store doc:id="4393f05a-bbff-47b0-ae8c-76d0aa64db48" key="wmKey" doc:name="Copy_of_Store" >
+			<os:value ><![CDATA[#[max(payload map $.LastModifiedDate) as DateTime as String {format:"yyyy-MM-dd HH:mm:ss"}]]]></os:value>
+		</os:store>
+		<logger level="INFO" doc:name="Copy_of_Log Part Number" doc:id="9d536893-8b86-41bb-aa6c-e0f2d38ddc8f" message="#[payload]" />
+		<flow-ref doc:name="Copy_of_Trigger upsert SFDC Product Batch flow" doc:id="419b76db-19e3-4bbb-8089-0ccee252fbb1" name="UpsertSFDCProductBatch" />
+		<logger level="INFO" doc:name="Copy_of_Logger" doc:id="9b49b3b4-97fd-4a57-9cc1-7c1bdacbbb2b" message="upsert SFDC product batch started" />
+	</flow>
+</mule>
